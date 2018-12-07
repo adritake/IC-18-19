@@ -1,5 +1,5 @@
-APRENDE = False
-DIBUJA = True
+APRENDE = True
+DIBUJA = False
 
 batch_size = 128
 num_classes = 10
@@ -10,21 +10,17 @@ import pandas as pd #Procesamiento de datos
 import matplotlib.pyplot as plt #para dibujar
 from collections import Counter
 from sklearn.metrics import confusion_matrix
-import itertools
-import seaborn as sns
-from subprocess import check_output
 import json
 
 import keras
 from keras.datasets import mnist #base de datos de los digitos
 from keras.models import Sequential
 from keras.models import model_from_json
-from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPool2D, Activation
-from keras.layers.normalization import BatchNormalization
+from keras.layers import Dense, Dropout, Flatten, Activation, BatchNormalization
 from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ReduceLROnPlateau
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
+
+from datetime import datetime
 
 
 print("Reconocimiento de dígitos MNIST: APRENDE = " + str(APRENDE) +
@@ -34,6 +30,7 @@ print("Reconocimiento de dígitos MNIST: APRENDE = " + str(APRENDE) +
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
 
+# Dibujar los 40 primeros numeros del conjunto de entrenamiento
 if DIBUJA:
     labels = Counter(y_train)
     print(labels.items())
@@ -57,94 +54,90 @@ print('Cantidad de muestras de test', x_test.shape[0])
 #Convertir los vectores de clases a matrices binarios One Hot Encoding
 y_train = keras.utils.to_categorical(y_train, num_classes)
 
-
+#Creamos el modelo de red neuronal
 if APRENDE:
+
     model = Sequential()
+
     model.add(Dense(784, input_shape=(784,)))
-    model.add(Activation('tanh'))
+    model.add(Activation('relu'))
     model.add(Dropout(0.2))
+
 
     model.add(Dense(10))
     model.add(Activation('softmax'))
+
+
     with open('model_architecture.json','w') as f:
         f.write(model.to_json())
     print("Model saved in model_architecture.json")
 
+#Cargamos el modelo
 else:
     with open('model_architecture.json','r') as f:
         model = model_from_json(f.read())
     model.load_weights('model_weights.h5')
 
-
+#Compilamos el modelo
 model.compile(loss=keras.losses.categorical_crossentropy,
               optimizer='adam',
               metrics=['accuracy'])
 
-#Creamos una reduccion de la tasa de aprendizaje
-learning_rate_reduction = ReduceLROnPlateau(monitor='val_acc',
-                                            patience=3,
-                                            verbose=1,
-                                            factor=0.5,
-                                            min_lr=0.0001)
 
-"""
-#Creamos variaciones aleatorias en las imagenes
-datagen = ImageDataGenerator(
-        featurewise_center=False,  # set input mean to 0 over the dataset
-        samplewise_center=False,  # set each sample mean to 0
-        featurewise_std_normalization=False,  # divide inputs by std of the dataset
-        samplewise_std_normalization=False,  # divide each input by its std
-        zca_whitening=False,  # apply ZCA whitening
-        rotation_range=15, # randomly rotate images in the range (degrees, 0 to 180)
-        zoom_range = 0.1, # Randomly zoom image
-        width_shift_range=0.1,  # randomly shift images horizontally (fraction of total width)
-        height_shift_range=0.1,  # randomly shift images vertically (fraction of total height)
-        horizontal_flip=False,  # randomly flip images
-        vertical_flip=False)  # randomly flip images
 
-#Aplicamos las variaciones aleatorias a las imágenes
-x_train = x_train.reshape(x_train.shape[0],28,28,1)
-datagen.fit(x_train)
-"""
 #Cambiamos de matriz a vector los valores de las imágenes
 x_train = x_train.reshape(60000, 784)
 x_test = x_test.reshape(10000, 784)
 x_train = x_train.astype('float32')
 x_test = x_test.astype('float32')
 
-#y_train = keras.utils.to_categorical(y_train, 10)
-y_test = keras.utils.to_categorical(y_test, num_classes)
+#Convertir las etiquetas en una matriz binaria
+y_test_mat = keras.utils.to_categorical(y_test, num_classes)
 
 #Imprimimos las características de la red neuronal
 model.summary()
 
 if APRENDE:
+
+    antes = datetime.now()
+
     #Entrenamos la red con el conjunto de datos preprocesado
     h = model.fit(x_train,
                   y_train,
                   batch_size = batch_size,
                   epochs = epochs,
                   verbose = 2,
-                  validation_data = (x_test, y_test))
+                  validation_data = (x_test, y_test_mat))
+
+
+    despues = datetime.now()
+    t = (despues-antes).seconds
+    print("Tiempo de entrenamiento: " + str(t))
 
     history = h.history
 
+    #Guardamos las características de la red
     with open('history.json', 'w') as f:
         json.dump(history, f)
 
     model.save_weights('model_weights.h5')
     print("Weights saved in model_weights.h5")
+
 else:
     with open('history.json') as f:
         history = json.load(f)
 
 
+# Probamos la red con el conjunto de test
 y_pred = model.predict_classes(x_test)
 
+# Imprimimos el resultado
+errores = np.count_nonzero((y_pred - y_test == 0) == 0)
+print("Numero de errores: " + str(errores) + ". Porcentaje de error = " + str(errores/100) + "%.")
 
 if DIBUJA:
     # Mostrar matrix de confusion
-    y_true = np.argmax(y_test,axis=1)
+
     cm = confusion_matrix(y_true, y_pred)
     print(cm)
 
@@ -168,7 +161,6 @@ if DIBUJA:
     plt.show()
 
     # Mostrar peores errores
-    # Errors are difference between predicted labels and true labels
     Y_pred = model.predict(x_test)
     Y_pred_classes = np.argmax(Y_pred, axis = 1)
     Y_true = np.argmax(y_test, axis = 1)
@@ -179,8 +171,8 @@ if DIBUJA:
     Y_true_errors = Y_true[errors]
     X_val_errors = x_test[errors]
 
+    #Funcion que muestra los 6 errores más comunes
     def display_errors(errors_index,img_errors,pred_errors, obs_errors):
-        """ This function shows 6 images with their predicted and real labels"""
         n = 0
         nrows = 2
         ncols = 3
@@ -192,20 +184,20 @@ if DIBUJA:
                 ax[row,col].set_title("Predicted label :{}\nTrue label :{}".format(pred_errors[error],obs_errors[error]))
                 n += 1
         plt.show()
-    # Probabilities of the wrong predicted numbers
+    # Probabilidad de los numeros predichos erroneamente
     Y_pred_errors_prob = np.max(Y_pred_errors,axis = 1)
 
-    # Predicted probabilities of the true values in the error set
+    # Probabilidades predichas de los valores verdaderos en el conjunto de errores
     true_prob_errors = np.diagonal(np.take(Y_pred_errors, Y_true_errors, axis=1))
 
-    # Difference between the probability of the predicted label and the true label
+    # Diferencia entre la probabilidad de la etiqueta predicha y la etiqueta verdadera
     delta_pred_true_errors = Y_pred_errors_prob - true_prob_errors
 
-    # Sorted list of the delta prob errors
+    # Lista ordenada de los errores delta
     sorted_dela_errors = np.argsort(delta_pred_true_errors)
 
-    # Top 6 errors
+    # Top 6 de errores
     most_important_errors = sorted_dela_errors[-6:]
 
-    # Show the top 6 errors
+    # Mostrar el top 6 de errores
     display_errors(most_important_errors, X_val_errors, Y_pred_classes_errors, Y_true_errors)
