@@ -25,3 +25,7 @@ hs_err_pid*
 # modelo
 *.h5
 *.json
+
+# odt
+*.odt
+*.odt#
