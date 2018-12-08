@@ -29,3 +29,6 @@ hs_err_pid*
 # odt
 *.odt
 *.odt#
+
+# etiquetas
+*.txt

@@ -1,5 +1,5 @@
 APRENDE = True
-DIBUJA = False
+DIBUJA = True
 
 batch_size = 128
 num_classes = 10
@@ -29,6 +29,12 @@ print("Reconocimiento de dígitos MNIST: APRENDE = " + str(APRENDE) +
 #Cargamos los datos
 (x_train, y_train), (x_test, y_test) = mnist.load_data()
 
+# Guardamos las etiquetas
+if DIBUJA:
+    f = open ('etiquetas.txt','w')
+    for y in y_test:
+        f.write('%s' % y)
+    f.close()
 
 # Dibujar los 40 primeros numeros del conjunto de entrenamiento
 if DIBUJA:
@@ -130,7 +136,6 @@ else:
 
 # Probamos la red con el conjunto de test
 y_pred = model.predict_classes(x_test)
-
 # Imprimimos el resultado
 errores = np.count_nonzero((y_pred - y_test == 0) == 0)
 print("Numero de errores: " + str(errores) + ". Porcentaje de error = " + str(errores/100) + "%.")
@@ -138,7 +143,7 @@ print("Numero de errores: " + str(errores) + ". Porcentaje de error = " + str(er
 if DIBUJA:
     # Mostrar matrix de confusion
 
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y_test, y_pred)
     print(cm)
 
     # Mostrar aprendizaje
@@ -163,13 +168,13 @@ if DIBUJA:
     # Mostrar peores errores
     Y_pred = model.predict(x_test)
     Y_pred_classes = np.argmax(Y_pred, axis = 1)
-    Y_true = np.argmax(y_test, axis = 1)
-    errors = (Y_pred_classes - Y_true != 0)
+    Y_true = np.argmax(y_test.reshape(10000,1), axis = 1)
 
+    errors = (y_pred - y_test != 0)
     Y_pred_classes_errors = Y_pred_classes[errors]
     Y_pred_errors = Y_pred[errors]
-    Y_true_errors = Y_true[errors]
-    X_val_errors = x_test[errors]
+    Y_true_errors = y_test[errors]
+    X_test_errors = x_test[errors]
 
     #Funcion que muestra los 6 errores más comunes
     def display_errors(errors_index,img_errors,pred_errors, obs_errors):
@@ -184,6 +189,7 @@ if DIBUJA:
                 ax[row,col].set_title("Predicted label :{}\nTrue label :{}".format(pred_errors[error],obs_errors[error]))
                 n += 1
         plt.show()
+
     # Probabilidad de los numeros predichos erroneamente
     Y_pred_errors_prob = np.max(Y_pred_errors,axis = 1)
 
@@ -194,10 +200,10 @@ if DIBUJA:
     delta_pred_true_errors = Y_pred_errors_prob - true_prob_errors
 
     # Lista ordenada de los errores delta
-    sorted_dela_errors = np.argsort(delta_pred_true_errors)
+    sorted_delta_errors = np.argsort(delta_pred_true_errors)
 
     # Top 6 de errores
-    most_important_errors = sorted_dela_errors[-6:]
+    most_important_errors = sorted_delta_errors[-6:]
 
     # Mostrar el top 6 de errores
-    display_errors(most_important_errors, X_val_errors, Y_pred_classes_errors, Y_true_errors)
+    display_errors(most_important_errors, X_test_errors, Y_pred_classes_errors, Y_true_errors)
