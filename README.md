@@ -11,3 +11,13 @@ Red neuronal de una capa en Java encargada de aprender a identificar los número
 Red neuronal desarrollada en python con la librería Keras con Tensorflow como backend
 
 [Proyecto](./MNISTv2)
+
+[Memoria](./MemoriaMNIST.pdf)
+
+## Práctica QAP
+
+Algoritmo genético para optimizar el QAP, consta de una variante genérica, una Lamarckiana y una Bladwiniana. Se han usado dos algoritmos greedy en el algoritmo genético, uno constructivo y otro de transposición 2-opt.
+
+[Proyecto](./QAP)
+
+[Memoria](./MemoriaQAP.pdf)
